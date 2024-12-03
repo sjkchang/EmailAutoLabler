@@ -3,9 +3,10 @@ import RuleForm from "./RuleForm";
 import { getAuthToken } from "../utils/auth-utils";
 
 export class ValidationError extends Error {
-    constructor(message, source) {
+    constructor(message, source, index = undefined) {
         super(message);
         this.source = source;
+        this.index = index;
     }
 }
 
@@ -91,12 +92,15 @@ const RuleBuilder = () => {
                 "condition"
             );
         }
-        if (rule.condition.some((condition) => !condition.action.label)) {
-            throw new ValidationError(
-                "All conditions must have an action",
-                "action"
-            );
-        }
+        rule.condition.forEach((condition, index) => {
+            if (!condition.action.label) {
+                throw new ValidationError(
+                    `All conditions must have an action.`,
+                    "action",
+                    index
+                );
+            }
+        });
 
         const query = rule.query?.userInput
             ? `Is/Does this email ${rule.query.userInput}?`
@@ -104,7 +108,7 @@ const RuleBuilder = () => {
         const conditions = rule.condition
             .map(
                 (condition) =>
-                    `If ${condition.if}, add a/the label ${condition.action.label}.`
+                    `If ${condition.if}, then add a/the label ${condition.action.label}.`
             )
             .join(", ");
         return `${query} ${conditions}`;

@@ -104,7 +104,7 @@ export class EmailService {
         emailIds.map((emailId) => {
           const email = new this.emailModel({
             owner: user._id,
-            emailId,
+            emailId: emailId,
             status: 'incomplete',
           });
 
@@ -163,6 +163,8 @@ export class EmailService {
       status: 'incomplete',
     });
 
+    console.log('Incomplete emails: ', unprocessedEmails.length);
+
     // For each incomplete email get the content:
     await Promise.all(
       unprocessedEmails.map((email) => {
@@ -190,23 +192,25 @@ export class EmailService {
     });
     prompt += `Email Content: ${email.content}`;
 
-    const messages = [];
-    const gptResponse = await this.openAiService.chatGptRequest(
-      prompt,
-      messages,
-    );
+    try {
+      const messages = [];
+      const gptResponse = await this.openAiService.chatGptRequest(
+        prompt,
+        messages,
+      );
 
-    const categorizedLabels = gptResponse
-      .split(',')
-      .map((label) => label.trim());
+      const categorizedLabels = gptResponse
+        .split(',')
+        .map((label) => label.trim());
 
-    // Update the email document
-    email.associated_labels = [
-      ...email.associated_labels,
-      ...categorizedLabels,
-    ];
-    email.status = 'categorized';
-    email.save();
+      // Update the email document
+      email.associated_labels = [
+        ...email.associated_labels,
+        ...categorizedLabels,
+      ];
+      email.status = 'categorized';
+      email.save();
+    } catch (e) {}
   }
 
   async categorizeEmails(user: UserDocument) {
@@ -215,6 +219,8 @@ export class EmailService {
       owner: user._id,
       status: 'unprocessed',
     });
+
+    console.log('Uncategorized emails: ', uncategorizedEmails.length);
 
     // For each uncategorized email, categorize it
     for (const email of uncategorizedEmails) {
@@ -230,6 +236,8 @@ export class EmailService {
       owner: user._id,
       status: 'categorized',
     });
+
+    console.log('Categorized but unlabeled emails: ', categorizedEmails.length);
 
     // For each categorized email, apply the labels
     for (const email of categorizedEmails) {
@@ -253,7 +261,7 @@ export class EmailService {
 
       // Apply the label IDs to the email in the user's email client
       if (labelIds.length > 0) {
-        //Apply the labels to the email in the user's email client
+        // Apply the labels to the email in the user's email client
         await lastValueFrom(
           this.httpService.post(
             `https://gmail.googleapis.com/gmail/v1/users/me/messages/${email.emailId}/modify`,
@@ -273,5 +281,7 @@ export class EmailService {
         );
       }
     }
+
+    return categorizedEmails;
   }
 }

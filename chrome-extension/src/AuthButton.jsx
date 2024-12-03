@@ -1,43 +1,48 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { getAuthToken, revokeAuthToken } from "./utils/auth-utils";
 
 const AuthButton = () => {
     const [token, setToken] = useState(null);
     const [error, setError] = useState(null);
 
+    useEffect(() => {
+        const checkAuthStatus = async () => {
+            try {
+                const token = await getAuthToken(false);
+                setToken(token);
+            } catch (error) {
+                setError(error);
+            }
+        };
+
+        checkAuthStatus();
+    }, []);
+
     const handleAuth = async () => {
         try {
             const token = await getAuthToken();
             setToken(token);
-            console.log("Token retrieved:", token);
         } catch (err) {
             setError(err);
-            console.error("Error retrieving token:", err);
         }
     };
 
     const handleRevokeToken = async () => {
         try {
             const result = await revokeAuthToken();
-            console.log("Token revoked successfully:", result);
             setToken(null);
         } catch (error) {
-            console.error("Error revoking token:", error);
+            setError(error);
         }
     };
 
     return (
         <div>
             {token ? (
-                <button onClick={handleRevokeToken}>
-                    Revoke Authentication
-                </button>
+                <button onClick={handleRevokeToken}>Sign Out</button>
             ) : (
-                <button onClick={handleAuth}>Authenticate</button>
+                <button onClick={handleAuth}>Sign In</button>
             )}
-
-            {token && <p>Token: {token}</p>}
-            {error && <p>Error: {error}</p>}
         </div>
     );
 };

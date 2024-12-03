@@ -1,22 +1,37 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
-import "./App.css";
 import AuthButton from "./AuthButton";
 import Rules from "./Rules/RulePage";
 import Categorize from "./Categorize";
+import { ThemeProvider, CssBaseline, Stack } from "@mui/material";
+import { appTheme } from "./themes/theme";
 
 function App() {
-    const [count, setCount] = useState(0);
-
     return (
-        <>
-            <div>
-                <AuthButton />
-                <Categorize />
-                <Rules />
-            </div>
-        </>
+        <ThemeProvider theme={appTheme}>
+            <CssBaseline enableColorScheme />
+            <>
+                <Stack
+                    spacing={2}
+                    sx={{
+                        justifyContent: "flex-start",
+                        alignItems: "center",
+                    }}
+                >
+                    <Stack
+                        direction="row"
+                        spacing={2}
+                        sx={{
+                            justifyContent: "flex-end",
+                            alignItems: "center",
+                        }}
+                    >
+                        <Categorize />
+                        <AuthButton />
+                    </Stack>
+
+                    <Rules />
+                </Stack>
+            </>
+        </ThemeProvider>
     );
 }
 

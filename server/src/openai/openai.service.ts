@@ -57,7 +57,7 @@ export class OpenAIService {
       return content;
     } catch (e) {
       // Log and propagate the error
-      console.error(e);
+      console.error(e.headers);
       throw new ServiceUnavailableException('Failed request to ChatGPT');
     }
   }

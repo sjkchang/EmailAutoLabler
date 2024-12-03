@@ -1,12 +1,15 @@
-export const getAuthToken = () => {
+export const getAuthToken = (promptLogin = true) => {
     return new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage({ type: "GET_AUTH_TOKEN" }, (response) => {
-            if (response && response.success) {
-                resolve(response.token);
-            } else {
-                reject(response.error || "Failed to get auth token");
+        chrome.runtime.sendMessage(
+            { type: "GET_AUTH_TOKEN", promptLogin: promptLogin },
+            (response) => {
+                if (response && response.authenticated) {
+                    resolve(response.token);
+                } else {
+                    reject(response.error || "Failed to get auth token");
+                }
             }
-        });
+        );
     });
 };
 

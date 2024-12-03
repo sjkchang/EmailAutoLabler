@@ -1,24 +1,29 @@
-import { ValidationError } from "./RuleBuilder";
+import TextField from "@mui/material/TextField";
 
 const QuerySection = ({ query, onQueryChange, validationError }) => (
-    <label>
-        {validationError?.source == "query" && ( // Display validation error message
-            <div className="error">{validationError.message}</div>
-        )}
-        Is/Does this email{" "}
-        <input
-            type="text"
-            value={query?.userInput || ""}
-            onChange={(e) =>
-                onQueryChange({
-                    ...query,
-                    userInput: e.target.value,
-                })
-            }
-            placeholder="e.g., relate to job applications"
-        />
-        ?
-    </label>
+    <div className="condition">
+        <label>
+            Is/Does this email{" "}
+            <TextField
+                error={validationError?.source === "query"}
+                helperText={
+                    validationError?.source == "query"
+                        ? validationError?.message
+                        : ""
+                }
+                type="text"
+                value={query?.userInput || ""}
+                onChange={(e) =>
+                    onQueryChange({
+                        ...query,
+                        userInput: e.target.value,
+                    })
+                }
+                placeholder="e.g., relate to job applications"
+            />
+            ?
+        </label>
+    </div>
 );
 
 export default QuerySection;

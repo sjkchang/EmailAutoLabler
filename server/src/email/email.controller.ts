@@ -11,14 +11,26 @@ export class EmailController {
 
   @Get('labels')
   async getMyLabels(@CurrentUser() user: UserDocument): Promise<any> {
-    return this.emailService.getMyLabels(user);
+    try {
+      return this.emailService.getMyLabels(user);
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   @Post('label')
   async label(@CurrentUser() user: UserDocument): Promise<any> {
-    await this.emailService.fetchNewEmails(user);
-    await this.emailService.getFullEmailContents(user);
-    await this.emailService.categorizeEmails(user);
-    await this.emailService.labelEmails(user);
+    try {
+      await this.emailService.fetchNewEmails(user);
+      console.log('Fetched new emails');
+      await this.emailService.getFullEmailContents(user);
+      console.log('Got full email contents');
+      await this.emailService.categorizeEmails(user);
+      console.log('Categorized emails');
+      await this.emailService.labelEmails(user);
+      return 'Emails labeled';
+    } catch (error) {
+      console.error(error);
+    }
   }
 }
