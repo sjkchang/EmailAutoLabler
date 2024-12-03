@@ -14,9 +14,6 @@ export class Rule {
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
   owner: User;
-
-  @Prop()
-  associated_labels: string[];
 }
 
 export const RuleSchema = SchemaFactory.createForClass(Rule);

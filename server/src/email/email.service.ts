@@ -10,6 +10,7 @@ import {
 import { Model } from 'mongoose';
 import { format, sub } from 'date-fns'; // Utility for date formatting
 import { OpenAIService } from 'src/openai/openai.service';
+import { RuleService } from 'src/rule/rule.service';
 
 @Injectable()
 export class EmailService {
@@ -17,6 +18,7 @@ export class EmailService {
     @InjectModel(EmailClassificationRequest.name)
     private emailModel: Model<EmailClassificationRequest>,
     private readonly openAiService: OpenAIService,
+    private readonly rulesService: RuleService,
     private readonly httpService: HttpService,
   ) {}
 
@@ -170,15 +172,12 @@ export class EmailService {
   }
 
   async categorizeEmail(
+    user: UserDocument,
     email: EmailClassificationRequestDocument,
-    rules: string[],
   ) {
     // Categorize the email using the OpenAI API
-    // Update the email document with the associated labels
-    rules = [
-      `Is this email related to a Job Application? If so include the label "Job Application" and a label representing the company.`,
-      `Is this email a application Rejection? If so include the label "Rejection".`,
-    ];
+    // Update the email document with the associated label
+    const rules = await this.rulesService.getMyRules(user);
 
     let prompt = `You have been provided with the content of an email. Using the following list of rules
     and their associated labels, determine what labels, if any should be applied to this email. Your 
@@ -219,7 +218,7 @@ export class EmailService {
 
     // For each uncategorized email, categorize it
     for (const email of uncategorizedEmails) {
-      this.categorizeEmail(email, []);
+      this.categorizeEmail(user, email);
     }
   }
 

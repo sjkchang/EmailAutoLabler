@@ -7,9 +7,11 @@ import {
   EmailClassificationRequest,
   EmailClassificationRequestSchema,
 } from 'src/schemas/email.schema';
+import { RuleModule } from 'src/rule/rule.module';
 
 @Module({
   imports: [
+    RuleModule,
     HttpModule,
     MongooseModule.forFeature([
       {

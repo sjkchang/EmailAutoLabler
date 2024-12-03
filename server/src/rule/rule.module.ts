@@ -14,5 +14,6 @@ import { HttpModule } from '@nestjs/axios';
   ],
   controllers: [RuleController],
   providers: [RuleService],
+  exports: [RuleService],
 })
 export class RuleModule {}
