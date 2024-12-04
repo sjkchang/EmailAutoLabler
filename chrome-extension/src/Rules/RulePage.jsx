@@ -16,6 +16,10 @@ const Rules = () => {
         };
     }, []);
 
+    const addRule = (newRule) => {
+        setRules((prevRules) => [...prevRules, newRule]);
+    };
+
     const getRules = async () => {
         const authToken = await getAuthToken();
 
@@ -93,7 +97,7 @@ const Rules = () => {
                     </p>
                 </div>
             ))}
-            <RuleBuilder />
+            <RuleBuilder onRuleSaved={addRule} />
         </div>
     );
 };

@@ -10,7 +10,7 @@ export class ValidationError extends Error {
     }
 }
 
-const RuleBuilder = () => {
+const RuleBuilder = ({ onRuleSaved }) => {
     const [rule, setRule] = useState();
     const [validationError, setValidationError] = useState();
 
@@ -27,10 +27,11 @@ const RuleBuilder = () => {
     const saveRule = async () => {
         try {
             const transcribedRule = transcribeRule(rule);
-            await postRule(transcribedRule);
+            const createdRule = await postRule(transcribedRule);
 
             setRule(undefined);
             setValidationError(undefined);
+            onRuleSaved(createdRule);
         } catch (error) {
             console.error(error);
             setValidationError(error);

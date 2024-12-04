@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
 import { User, UserDocument } from 'src/schemas/user.schema';
@@ -23,137 +23,150 @@ export class EmailService {
   ) {}
 
   async getMyLabels(user: UserDocument): Promise<[string, string][]> {
-    // Fetch the user's email labels from the Gmail API
-    // and return them to the client
-    const response = await lastValueFrom(
-      this.httpService.get(
-        'https://gmail.googleapis.com/gmail/v1/users/me/labels',
-        {
-          headers: { Authorization: `Bearer ${user.googleOauthToken}` },
-        },
-      ),
-    );
-
-    // Extract the label names from the response
-    return response.data.labels.map((label) => [label.id, label.name]);
+    try {
+      const response = await lastValueFrom(
+        this.httpService.get(
+          'https://gmail.googleapis.com/gmail/v1/users/me/labels',
+          {
+            headers: { Authorization: `Bearer ${user.googleOauthToken}` },
+          },
+        ),
+      );
+      return response.data.labels.map((label) => [label.id, label.name]);
+    } catch (error) {
+      console.error('Error fetching labels:', error.message);
+      throw new InternalServerErrorException('Failed to fetch labels.');
+    }
   }
 
   async createLabel(
     user: UserDocument,
     labelName: string,
   ): Promise<[string, string]> {
-    console.log(user.googleOauthToken);
-    const response = await lastValueFrom(
-      this.httpService.post(
-        'https://gmail.googleapis.com/gmail/v1/users/me/labels',
-        {
-          name: labelName,
-          messageListVisibility: 'show',
-          labelListVisibility: 'labelShow',
-        },
-        {
-          headers: { Authorization: `Bearer ${user.googleOauthToken}` },
-        },
-      ),
-    );
-
-    console.log(response.data);
-
-    return [response.data.id, response.data.name];
+    try {
+      const response = await lastValueFrom(
+        this.httpService.post(
+          'https://gmail.googleapis.com/gmail/v1/users/me/labels',
+          {
+            name: labelName,
+            messageListVisibility: 'show',
+            labelListVisibility: 'labelShow',
+          },
+          {
+            headers: { Authorization: `Bearer ${user.googleOauthToken}` },
+          },
+        ),
+      );
+      return [response.data.id, response.data.name];
+    } catch (error) {
+      console.error(`Error creating label "${labelName}":`, error.message);
+      throw new InternalServerErrorException('Failed to create label.');
+    }
   }
 
   async fetchNewEmails(
     user: UserDocument,
   ): Promise<EmailClassificationRequest[]> {
-    const lastFetchedEmailDatetime =
-      user.lastFetchedEmailDatetime || new Date(0);
-
-    const formattedLastEmailDateTime = format(
-      new Date(lastFetchedEmailDatetime),
-      'MM/dd/yyyy',
-    );
-
-    const query = `after:${formattedLastEmailDateTime}`;
     const emailIds: string[] = [];
     let nextPageToken: string | undefined;
 
-    do {
-      const response = await lastValueFrom(
-        this.httpService.get(
-          'https://gmail.googleapis.com/gmail/v1/users/me/messages',
-          {
-            headers: { Authorization: `Bearer ${user.googleOauthToken}` },
-            params: { q: query, pageToken: nextPageToken, maxResults: 100 },
-          },
-        ),
-      );
-
-      const messages = response.data.messages || [];
-      emailIds.push(...messages.map((message: any) => message.id));
-      nextPageToken = response.data.nextPageToken;
-    } while (nextPageToken);
-
-    // Update the user's lastEmailDateTime in the database to now
-    user.lastFetchedEmailDatetime = new Date();
-    await user.save();
-
-    let emailClassificationRequests: EmailClassificationRequest[] = [];
     try {
-      // Create EmailClassificationRequest documents for each email and save them to the database
-      emailClassificationRequests = await Promise.all(
-        emailIds.map((emailId) => {
-          const email = new this.emailModel({
+      const lastFetchedEmailDatetime =
+        user.lastFetchedEmailDatetime || new Date(0);
+      const formattedLastEmailDateTime = format(
+        new Date(lastFetchedEmailDatetime),
+        'MM/dd/yyyy',
+      );
+      const query = `after:${formattedLastEmailDateTime}`;
+
+      do {
+        const response = await lastValueFrom(
+          this.httpService.get(
+            'https://gmail.googleapis.com/gmail/v1/users/me/messages',
+            {
+              headers: { Authorization: `Bearer ${user.googleOauthToken}` },
+              params: { q: query, pageToken: nextPageToken, maxResults: 100 },
+            },
+          ),
+        );
+
+        const messages = response.data.messages || [];
+        emailIds.push(...messages.map((message: any) => message.id));
+        nextPageToken = response.data.nextPageToken;
+      } while (nextPageToken);
+
+      user.lastFetchedEmailDatetime = new Date();
+      await user.save();
+    } catch (error) {
+      console.error('Error fetching new emails:', error.message);
+      throw new InternalServerErrorException('Failed to fetch new emails.');
+    }
+
+    try {
+      const emailClassificationRequests = await Promise.all(
+        emailIds.map((emailId) =>
+          new this.emailModel({
             owner: user._id,
             emailId: emailId,
             status: 'incomplete',
-          });
-
-          return email.save();
-        }),
+          }).save(),
+        ),
       );
-    } catch (error) {}
-
-    // Return a list of EmailClassificationRequest documents to the client
-    return emailClassificationRequests;
+      return emailClassificationRequests;
+    } catch (error) {
+      if (error.code === 11000) {
+        console.log('Email already exists');
+      } else {
+        console.error(
+          'Error saving email classification requests:',
+          error.message,
+        );
+        throw new InternalServerErrorException('Failed to save email data.');
+      }
+    }
   }
 
   async getFullEmailContent(
     user: UserDocument,
     email: EmailClassificationRequestDocument,
   ): Promise<EmailClassificationRequestDocument> {
-    // Fetch the content of the email with the given ID from the Gmail API
-    const response = await lastValueFrom(
-      this.httpService.get(
-        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${email.emailId}`,
-        {
-          headers: { Authorization: `Bearer ${user.googleOauthToken}` },
-        },
-      ),
-    );
+    try {
+      const response = await lastValueFrom(
+        this.httpService.get(
+          `https://gmail.googleapis.com/gmail/v1/users/me/messages/${email.emailId}`,
+          {
+            headers: { Authorization: `Bearer ${user.googleOauthToken}` },
+          },
+        ),
+      );
 
-    const payload = response.data.payload;
+      const payload = response.data.payload;
+      const subject = payload.headers.find(
+        (header: any) => header.name === 'Subject',
+      )?.value;
 
-    // Extract subject from payload.headers
-    const subject = payload.headers.find(
-      (header: any) => header.name === 'Subject',
-    ).value;
-
-    // Extract the body of the email
-    let body: string;
-    for (const part of payload.parts) {
-      if (part.mimeType === 'text/plain') {
-        body = Buffer.from(part.body.data, 'base64').toString('utf-8');
+      let body = '';
+      for (const part of payload.parts || []) {
+        if (part.mimeType === 'text/plain') {
+          body = Buffer.from(part.body.data, 'base64').toString('utf-8');
+        }
       }
-    }
 
-    if (body && subject) {
-      // Update the email document with the content
-      email.content = `Subject: ${subject} Content: ${body}`;
-      email.status = 'unprocessed';
-      return email.save();
-    }
+      if (body && subject) {
+        email.content = `Subject: ${subject} Content: ${body}`;
+        email.status = 'unprocessed';
+        return email.save();
+      }
 
-    return email;
+      console.warn(`Missing email content for ID: ${email.emailId}`);
+      return email;
+    } catch (error) {
+      console.error(
+        `Error fetching content for email ID ${email.emailId}:`,
+        error.message,
+      );
+      throw new InternalServerErrorException('Failed to fetch email content.');
+    }
   }
 
   async getFullEmailContents(user: UserDocument): Promise<void> {
@@ -165,34 +178,35 @@ export class EmailService {
 
     console.log('Incomplete emails: ', unprocessedEmails.length);
 
-    // For each incomplete email get the content:
-    await Promise.all(
-      unprocessedEmails.map((email) => {
-        return this.getFullEmailContent(user, email);
-      }),
-    );
+    for (const email of unprocessedEmails) {
+      try {
+        await this.getFullEmailContent(user, email);
+      } catch (error) {
+        console.error(
+          `Error processing email with ID ${email.emailId}: ${error.message}`,
+        );
+      }
+    }
   }
 
   async categorizeEmail(
     user: UserDocument,
     email: EmailClassificationRequestDocument,
   ) {
-    // Categorize the email using the OpenAI API
-    // Update the email document with the associated label
-    const rules = await this.rulesService.getMyRules(user);
-
-    let prompt = `You have been provided with the content of an email. Using the following list of rules
-    and their associated labels, determine what labels, if any should be applied to this email. Your 
-    response should come in the format of a comma seperated list of labels:
-    If no labels apply, simply respond with "None".
-    Rules:
-    `;
-    rules.forEach((rule) => {
-      prompt += `- ${rule}\n`;
-    });
-    prompt += `Email Content: ${email.content}`;
-
     try {
+      const rules = await this.rulesService.getMyRules(user);
+
+      let prompt = `You have been provided with the content of an email. Using the following list of rules
+      and their associated labels, determine what labels, if any should be applied to this email. Your 
+      response should come in the format of a comma-separated list of labels:
+      If no labels apply, simply respond with "None".
+      Rules:
+      `;
+      rules.forEach((rule) => {
+        prompt += `- ${rule}\n`;
+      });
+      prompt += `Email Content: ${email.content}`;
+
       const messages = [];
       const gptResponse = await this.openAiService.chatGptRequest(
         prompt,
@@ -203,14 +217,18 @@ export class EmailService {
         .split(',')
         .map((label) => label.trim());
 
-      // Update the email document
       email.associated_labels = [
         ...email.associated_labels,
         ...categorizedLabels,
       ];
       email.status = 'categorized';
-      email.save();
-    } catch (e) {}
+      await email.save();
+    } catch (error) {
+      console.error(
+        `Error categorizing email ID ${email.emailId}:`,
+        error.message,
+      );
+    }
   }
 
   async categorizeEmails(user: UserDocument) {
@@ -222,16 +240,20 @@ export class EmailService {
 
     console.log('Uncategorized emails: ', uncategorizedEmails.length);
 
-    // For each uncategorized email, categorize it
     for (const email of uncategorizedEmails) {
-      this.categorizeEmail(user, email);
+      try {
+        await this.categorizeEmail(user, email);
+      } catch (error) {
+        console.error(
+          `Error categorizing email with ID ${email.emailId}: ${error.message}`,
+        );
+      }
     }
   }
 
-  async labelEmails(user: UserDocument) {
+  async labelEmails(user: UserDocument): Promise<EmailClassificationRequest[]> {
     let usersLabels = await this.getMyLabels(user);
 
-    // Get emails with status 'categorized' from the database
     const categorizedEmails = await this.emailModel.find({
       owner: user._id,
       status: 'categorized',
@@ -239,45 +261,62 @@ export class EmailService {
 
     console.log('Categorized but unlabeled emails: ', categorizedEmails.length);
 
-    // For each categorized email, apply the labels
     for (const email of categorizedEmails) {
-      const labelIds: string[] = []; // Collect the label IDs for this email
+      try {
+        const labelIds: string[] = [];
 
-      // Check if the label exists in usersLabels
-      for (const label of email.associated_labels) {
-        let labelId = usersLabels.find(([id, name]) => name === label)?.[0];
+        for (const label of email.associated_labels) {
+          try {
+            let labelId = usersLabels.find(([id, name]) => name === label)?.[0];
 
-        // If the label does not exist, create it
-        if (!labelId && label !== 'None') {
-          const newLabel = await this.createLabel(user, label); // newLabel is [id, name]
-          usersLabels.push(newLabel); // Add the new label to the list
-          labelId = newLabel[0]; // Use the ID of the newly created label
+            if (!labelId && label !== 'None') {
+              const newLabel = await this.createLabel(user, label);
+              usersLabels.push(newLabel);
+              labelId = newLabel[0];
+            }
+
+            if (labelId) {
+              labelIds.push(labelId);
+            }
+          } catch (error) {
+            console.error(
+              `Error creating or finding label "${label}" for email ID ${email.emailId}: ${error.message}`,
+            );
+          }
         }
 
-        if (labelId) {
-          labelIds.push(labelId); // Add the ID to the labelIds array
+        if (labelIds.length > 0) {
+          try {
+            await lastValueFrom(
+              this.httpService.post(
+                `https://gmail.googleapis.com/gmail/v1/users/me/messages/${email.emailId}/modify`,
+                {
+                  addLabelIds: labelIds,
+                },
+                {
+                  headers: { Authorization: `Bearer ${user.googleOauthToken}` },
+                },
+              ),
+            );
+
+            await this.emailModel.updateOne(
+              { _id: email._id },
+              { status: 'labeled' },
+            );
+          } catch (error) {
+            console.error(
+              `Error applying labels to email ID ${email.emailId}: ${error.message}`,
+            );
+          }
+        } else {
+          await this.emailModel.updateOne(
+            { _id: email._id },
+            { status: 'labeled' },
+          );
         }
-      }
-
-      // Apply the label IDs to the email in the user's email client
-      if (labelIds.length > 0) {
-        // Apply the labels to the email in the user's email client
-        await lastValueFrom(
-          this.httpService.post(
-            `https://gmail.googleapis.com/gmail/v1/users/me/messages/${email.emailId}/modify`,
-            {
-              addLabelIds: labelIds,
-            },
-            {
-              headers: { Authorization: `Bearer ${user.googleOauthToken}` },
-            },
-          ),
-        );
-
-        // Update the email status to 'labeled'
-        await this.emailModel.updateOne(
-          { _id: email._id },
-          { status: 'labeled' },
+      } catch (error) {
+        console.error(
+          `Error processing labeled email with ID ${email.emailId}: ${error.message}`,
         );
       }
     }
