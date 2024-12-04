@@ -62,7 +62,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 async function getAuthToken() {
     return new Promise((resolve, reject) => {
-        chrome.identity.getAuthToken({ interactive: true }, (token) => {
+        chrome.identity.getAuthToken({ interactive: false }, (token) => {
             if (chrome.runtime.lastError) {
                 reject(
                     chrome.runtime.lastError.message ||

@@ -1,7 +1,8 @@
-export const getAuthToken = (promptLogin = true) => {
+export const getAuthToken = (promptLogin) => {
+    let interactive = promptLogin || true;
     return new Promise((resolve, reject) => {
         chrome.runtime.sendMessage(
-            { type: "GET_AUTH_TOKEN", promptLogin: promptLogin },
+            { type: "GET_AUTH_TOKEN", promptLogin: interactive },
             (response) => {
                 if (response && response.authenticated) {
                     resolve(response.token);

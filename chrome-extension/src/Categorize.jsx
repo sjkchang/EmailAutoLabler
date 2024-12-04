@@ -1,8 +1,9 @@
 import { getAuthToken } from "./utils/auth-utils";
+import { Button } from "antd";
 
 function Categorize() {
     const triggerCategorization = async () => {
-        let token = await getAuthToken();
+        let token = await getAuthToken(false);
 
         fetch(`http://localhost:3000/email/label`, {
             method: "POST",
@@ -24,13 +25,13 @@ function Categorize() {
     };
 
     return (
-        <button
+        <Button
             onClick={() => {
                 triggerCategorization();
             }}
         >
             Categorize
-        </button>
+        </Button>
     );
 }
 

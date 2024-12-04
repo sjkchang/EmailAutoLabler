@@ -1,8 +1,7 @@
 import QuerySection from "./QuerySection";
 import ConditionSection from "./ConditionSection";
-import { ValidationError } from "./RuleBuilder";
-
-const RuleForm = ({ rule, onUpdate, onSave, onCancel, validationError }) => {
+import { Flex } from "antd";
+const RuleForm = ({ rule, onUpdate, validationError }) => {
     const handleQueryChange = (updatedQuery) =>
         onUpdate({
             ...rule,
@@ -16,10 +15,7 @@ const RuleForm = ({ rule, onUpdate, onSave, onCancel, validationError }) => {
         });
 
     return (
-        <div className="rule">
-            {validationError?.source == "rule" && ( // Display validation error message
-                <div className="error">{validationError.message}</div>
-            )}
+        <Flex vertical justify="flex-start" gap="small">
             <QuerySection
                 query={rule.query}
                 onQueryChange={handleQueryChange}
@@ -30,9 +26,7 @@ const RuleForm = ({ rule, onUpdate, onSave, onCancel, validationError }) => {
                 onConditionsChange={handleConditionsChange}
                 validationError={validationError}
             />
-            <button onClick={onCancel}>Cancel</button>
-            <button onClick={onSave}>Save</button>
-        </div>
+        </Flex>
     );
 };
 
