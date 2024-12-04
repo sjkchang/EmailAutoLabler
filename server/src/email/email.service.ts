@@ -77,7 +77,7 @@ export class EmailService {
         new Date(lastFetchedEmailDatetime),
         'MM/dd/yyyy',
       );
-      const query = `after:${formattedLastEmailDateTime}`;
+      const query = `after:${formattedLastEmailDateTime} in:inbox`;
 
       do {
         const response = await lastValueFrom(
