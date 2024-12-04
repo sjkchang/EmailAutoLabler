@@ -245,7 +245,7 @@ const Rules = () => {
             )}
 
             <Modal
-                title="Basic Modal"
+                title="Create a Rule"
                 open={isModalOpen}
                 onCancel={handleCancel}
                 footer={[
