@@ -67,7 +67,7 @@ export class EmailService {
   async fetchNewEmails(
     user: UserDocument,
   ): Promise<EmailClassificationRequest[]> {
-    const emailIds: string[] = [];
+    const emails: any[] = [];
     let nextPageToken: string | undefined;
 
     try {
@@ -91,7 +91,7 @@ export class EmailService {
         );
 
         const messages = response.data.messages || [];
-        emailIds.push(...messages.map((message: any) => message.id));
+        emails.push(...messages.map((message: any) => message));
         nextPageToken = response.data.nextPageToken;
       } while (nextPageToken);
 
@@ -104,13 +104,15 @@ export class EmailService {
 
     try {
       const emailClassificationRequests = await Promise.all(
-        emailIds.map((emailId) =>
-          new this.emailModel({
+        emails.map((email) => {
+          console.log(email);
+          return new this.emailModel({
             owner: user._id,
-            emailId: emailId,
+            emailId: email.id,
+            threadId: email.threadId,
             status: 'incomplete',
-          }).save(),
-        ),
+          }).save();
+        }),
       );
       return emailClassificationRequests;
     } catch (error) {

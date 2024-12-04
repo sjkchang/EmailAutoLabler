@@ -11,6 +11,9 @@ export class EmailClassificationRequest {
   @Prop({ required: true, unique: true })
   emailId: string;
 
+  @Prop({ required: true, unique: true })
+  threadId: string;
+
   @Prop()
   content: string;
 
