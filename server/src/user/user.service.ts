@@ -28,7 +28,10 @@ export class UserService {
       user.googleOauthToken = googleOauthToken;
       await user.save();
     } else {
-      user = new this.userModel({ googleUser, googleOauthToken });
+      user = new this.userModel({
+        ...googleUser,
+        googleOauthToken: googleOauthToken,
+      });
       await user.save();
     }
 
